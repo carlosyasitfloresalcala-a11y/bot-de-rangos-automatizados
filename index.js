@@ -1,145 +1,151 @@
+const { Client, GatewayIntentBits, PermissionsBitField } = require("discord.js");
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
+
 const app = express();
-
-app.get("/", (req, res) => {
-  res.send("Bot activo");
-});
-
-app.listen(3000, () => {
-  console.log("Web online");
-});
-require("dotenv").config();
-const {
-  Client,
-  GatewayIntentBits,
-  Partials,
-  PermissionsBitField
-} = require("discord.js");
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ],
-  partials: [Partials.Channel]
+    GatewayIntentBits.GuildPresences
+  ]
 });
 
-// CONFIGURACIÓN
-const CANAL_TABLA_ID = "1503582640853352599";
-const ROLES_A_MONITOREAR = ["LIDER", "Mandos", "Colonenl", "Mayor", "Sargento de Primera Clase", "Sargento de Personal", "Sargento", "Cabo", "Soldado Primera Clase", "Soldado Raso"]; // nombres exactos
-let MENSAJE_TABLA_ID = null;
+const RUTA_BD = path.join(__dirname, "servidores.json");
 
-// BOT LISTO
+// Función para leer los roles guardados de un servidor
+function obtenerRolesServidor(guildId) {
+  if (!fs.existsSync(RUTA_BD)) return [];
+  const datos = JSON.parse(fs.readFileSync(RUTA_BD, "utf-8"));
+  return datos[guildId] || [];
+}
+
+// Función para guardar los roles de un servidor
+function guardarRolesServidor(guildId, roles) {
+  let datos = {};
+  if (fs.existsSync(RUTA_BD)) {
+    datos = JSON.parse(fs.readFileSync(RUTA_BD, "utf-8"));
+  }
+  datos[guildId] = roles;
+  fs.writeFileSync(RUTA_BD, JSON.stringify(datos, null, 2), "utf-8");
+}
+
+// Servidor Web para UptimeRobot 24/7
+app.get("/", (req, res) => res.send("Bot activo"));
+app.listen(3000, () => console.log("Servidor web online"));
+
+// Registro Global de Comandos
 client.once("ready", async () => {
-  console.log(`✅ Bot conectado como ${client.user.tag}`);
-
-  // Esto registra el comando /rangos de forma global en cualquier servidor
+  console.log(✅ Bot conectado como ${client.user.tag});
   try {
     await client.application.commands.set([
       {
         name: "rangos",
-        description: "Actualiza la tabla de rangos del servidor manualmente",
+        description: "Muestra la tabla de rangos actualizada de este servidor"
+      },
+      {
+        name: "config-agregar",
+        description: "Añade un rol a la lista de monitoreo de rangos",
+        options: [
+          {
+            name: "rol",
+            description: "Menciona el rol que deseas añadir",
+            type: 8, // Tipo ROLE
+            required: true
+          }
+        ]
+      },
+      {
+        name: "config-eliminar",
+        description: "Elimina un rol de la lista de monitoreo de rangos",
+        options: [
+          {
+            name: "rol",
+            description: "Menciona el rol que deseas quitar",
+            type: 8, // Tipo ROLE
+            required: true
+          }
+        ]
       }
     ]);
-    console.log("⭐ Comando /rangos registrado globalmente");
+    console.log("⭐ Comandos del sistema registrados globalmente");
   } catch (error) {
-    console.error("Error al registrar comando:", error);
-  }
-
-  // CARGAR TODOS LOS MIEMBROS DEL SERVIDOR
-  for (const guild of client.guilds.cache.values()) {
-    await guild.members.fetch();
-    console.log(`👥 Miembros cargados en ${guild.name}`);
+    console.error("Error al registrar comandos:", error);
   }
 });
 
-// COMANDO MANUAL !tabla
-// ESCUCHAR COMANDO DIAGONAL /rangos
+// Receptor de Interacciones
 client.on("interactionCreate", async (interaction) => {
-  // Si no es un comando de barra diagonal, no hacer nada
   if (!interaction.isChatInputCommand()) return;
+  const { commandName, guild, member, channel } = interaction;
 
-  if (interaction.commandName === "rangos") {
-    // Verificar si el usuario es administrador
-    if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-      return interaction.reply({ content: "❌ No tienes permisos para usar este comando.", ephemeral: true });
+  // Verificar permisos de Administrador para configurar o usar el bot
+  if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+    return interaction.reply({ content: "❌ No tienes permisos de Administrador para usar este bot.", ephemeral: true });
+  }
+
+  const rolesActuales = obtenerRolesServidor(guild.id);
+
+  if (commandName === "config-agregar") {
+    const rolObject = interaction.options.getRole("rol");
+    
+    if (rolesActuales.includes(rolObject.name)) {
+      return interaction.reply({ content: ⚠️ El rol **${rolObject.name}** ya está en la lista., ephemeral: true });
     }
 
-    // Avisarle a Discord que el bot está procesando (evita que el comando expire si tarda en cargar)
+    rolesActuales.push(rolObject.name);
+    guardarRolesServidor(guild.id, rolesActuales);
+    return interaction.reply({ content: ✅ Se ha añadido el rol **${rolObject.name}** a la tabla de monitoreo. });
+  }
+
+  if (commandName === "config-eliminar") {
+    const rolObject = interaction.options.getRole("rol");
+    
+    if (!rolesActuales.includes(rolObject.name)) {
+      return interaction.reply({ content: ⚠️ El rol **${rolObject.name}** no estaba en la lista., ephemeral: true });
+    }
+
+    const nuevaLista = rolesActuales.filter(nombre => nombre !== rolObject.name);
+    guardarRolesServidor(guild.id, nuevaLista);
+    return interaction.reply({ content: ❌ Se ha eliminado el rol **${rolObject.name}** de la tabla de monitoreo. });
+  }
+
+  if (commandName === "rangos") {
     await interaction.deferReply();
+    
+    if (rolesActuales.length === 0) {
+      return interaction.editReply("⚠️ Este servidor aún no tiene rangos configurados. Usa /config-agregar para empezar.");
+    }
 
     try {
-      // Ejecuta tu función usando el servidor donde se usó el comando (interaction.guild)
-      await actualizarTabla(interaction.guild, interaction.channel);
-      await interaction.editReply("✅ Tabla actualizada correctamente.");
+      await guild.members.fetch();
+      let contenido = "📊 *TABLA DE RANGOS DEL SERVIDOR*\n\n";
+
+      for (const nombreRol of rolesActuales) {
+        const rol = guild.roles.cache.find(r => r.name.toLowerCase() === nombreRol.toLowerCase());
+        if (!rol) continue;
+
+        contenido += 🔰 <@&${rol.id}>\n;
+        if (rol.members.size === 0) {
+          contenido += "Nadie\n\n";
+          continue;
+        }
+
+        rol.members.forEach(m => {
+          contenido += • <@${m.id}>\n;
+        });
+        contenido += "\n";
+      }
+
+      await channel.send(contenido);
+      await interaction.editReply("✅ Tabla desplegada correctamente.");
     } catch (error) {
       console.error(error);
-      await interaction.editReply("❌ Hubo un error al actualizar la tabla.");
+      await interaction.editReply("❌ Hubo un error al generar la tabla.");
     }
   }
 });
 
-// DETECTAR CAMBIOS DE ROLES
-client.on("guildMemberUpdate", async (oldMember, newMember) => {
-  if (oldMember.roles.cache.size === newMember.roles.cache.size) return;
-  await actualizarTabla(newMember.guild);
-});
-
-// FUNCIÓN PRINCIPAL
-async function actualizarTabla(guild, canalEspecifico = null) {
-  // Si le pasamos un canal por el comando, usa ese. Si no, busca el por defecto.
-  const canal = canalEspecifico || guild.channels.cache.get(CANAL_TABLA_ID);
-  if (!canal) return;
-
-  let contenido = " 📊 *TABLA DE RANGOS*\n\n";
-
-  for (const nombreRol of ROLES_A_MONITOREAR) {
-    const rol = guild.roles.cache.find(
-      (r) => r.name.toLowerCase() === nombreRol.toLowerCase()
-    );
-    if (!rol) continue;
-
-    contenido += `🔰 <@&${rol.id}>\n`;
-
-    if (rol.members.size === 0) {
-      contenido += "_Nadie_\n\n";
-      continue;
-    }
-
-    rol.members.forEach((miembro) => {
-      contenido += `• <@${miembro.id}>\n`;
-    });
-
-    contenido += "\n";
-  }
-
-  // CREAR O EDITAR MENSAJE
-  if (!MENSAJE_TABLA_ID) {
-    const mensajes = await canal.messages.fetch({ limit: 10 });
-    const existente = mensajes.find(
-      (m) =>
-        m.author.id === client.user.id &&
-        m.content.startsWith("📊 **TABLA DE RANGOS**")
-    );
-
-    if (existente) {
-      MENSAJE_TABLA_ID = existente.id;
-      await existente.edit(contenido);
-    } else {
-      const nuevo = await canal.send(contenido);
-      MENSAJE_TABLA_ID = nuevo.id;
-    }
-  } else {
-    try {
-      const mensaje = await canal.messages.fetch(MENSAJE_TABLA_ID);
-      await mensaje.edit(contenido);
-    } catch {
-      MENSAJE_TABLA_ID = null;
-      await actualizarTabla(guild);
-    }
-  }
-}
-
+// El Token se lee de forma segura desde Railway
 client.login(process.env.TOKEN);
