@@ -8,57 +8,93 @@ const {
 
 const commands = [
 
+    // =========================
+    // COMANDO /rangos
+    // =========================
+
     new SlashCommandBuilder()
         .setName("rangos")
         .setDescription("Crear tabla de rangos"),
 
+    // =========================
+    // COMANDO /agregarrango
+    // =========================
+
     new SlashCommandBuilder()
         .setName("agregarrango")
-        .setDescription("Agregar rango")
+        .setDescription("Agregar un rango a la tabla")
+
         .addRoleOption(option =>
             option
                 .setName("rol")
-                .setDescription("Rol")
+                .setDescription("Rol que deseas agregar")
                 .setRequired(true)
         ),
 
-   new SlashCommandBuilder()
-    .setName("eliminarrango")
-    .setDescription("Eliminar rango")
-    .addRoleOption(option =>
-        option
-            .setName("rol")
-            .setDescription("Rol")
-            .setRequired(true)
-    ),
+    // =========================
+    // COMANDO /eliminarrango
+    // =========================
 
-new SlashCommandBuilder()
-    .setName("actualizar")
-    .setDescription("Actualizar manualmente la tabla")
+    new SlashCommandBuilder()
+        .setName("eliminarrango")
+        .setDescription("Eliminar un rango de la tabla")
+
+        .addRoleOption(option =>
+            option
+                .setName("rol")
+                .setDescription("Rol que deseas eliminar")
+                .setRequired(true)
+        ),
+
+    // =========================
+    // COMANDO /actualizar
+    // =========================
+
+    new SlashCommandBuilder()
+        .setName("actualizar")
+        .setDescription("Actualizar manualmente la tabla de rangos")
 
 ].map(command => command.toJSON());
+
+// =========================
+// CONFIGURAR REST
+// =========================
 
 const rest = new REST({
     version: "10"
 }).setToken(process.env.TOKEN);
 
+// =========================
+// REGISTRAR COMANDOS
+// =========================
+
 (async () => {
 
     try {
 
-        console.log("Registrando comandos...");
+        console.log("=================================");
+        console.log("🔄 Registrando slash commands...");
+        console.log("=================================");
 
         await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID),
-            { body: commands }
+
+            Routes.applicationCommands(
+                process.env.CLIENT_ID
+            ),
+
+            {
+                body: commands
+            }
         );
 
-        console.log("✅ Comandos registrados.");
-
+        console.log("=================================");
+        console.log("✅ Slash commands registrados");
+        console.log("=================================");
     }
 
     catch (error) {
 
+        console.error("❌ Error registrando comandos:");
         console.error(error);
     }
 
