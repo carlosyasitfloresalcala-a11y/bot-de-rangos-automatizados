@@ -82,7 +82,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 })();
 
 client.once("ready", () => {
-    console.log(Bot conectado como ${client.user.tag});
+    console.log('Bot conectado como ${client.user.tag}');
 });
 
 async function actualizarTabla(guildId, channel) {
