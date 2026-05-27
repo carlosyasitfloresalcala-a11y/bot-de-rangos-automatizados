@@ -82,7 +82,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 })();
 
 client.once("ready", () => {
-    console.log(`Bot conectado como ${client.user.tag}`);
+    console.log(Bot conectado como ${client.user.tag});
 });
 
 async function actualizarTabla(guildId, channel) {
@@ -98,7 +98,7 @@ async function actualizarTabla(guildId, channel) {
         contenido += "No hay rangos agregados.";
     } else {
         rangos.forEach((rol, index) => {
-            contenido += `${index + 1}. <@&${rol}>\n`;
+            contenido += ${index + 1}. <@&${rol}>\n;
         });
     }
 
@@ -173,7 +173,7 @@ client.on("interactionCreate", async interaction => {
         await actualizarTabla(guildId, channel);
 
         return interaction.reply({
-            content: `✅ Rango ${rol} agregado.`,
+            content: ✅ Rango ${rol} agregado.,
             ephemeral: true
         });
     }
@@ -195,7 +195,7 @@ client.on("interactionCreate", async interaction => {
         await actualizarTabla(guildId, channel);
 
         return interaction.reply({
-            content: `✅ Rango ${rol} eliminado.`,
+            content: ✅ Rango ${rol} eliminado.,
             ephemeral: true
         });
     }
