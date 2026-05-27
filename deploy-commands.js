@@ -22,15 +22,19 @@ const commands = [
                 .setRequired(true)
         ),
 
-    new SlashCommandBuilder()
-        .setName("eliminarrango")
-        .setDescription("Eliminar rango")
-        .addRoleOption(option =>
-            option
-                .setName("rol")
-                .setDescription("Rol")
-                .setRequired(true)
-        )
+   new SlashCommandBuilder()
+    .setName("eliminarrango")
+    .setDescription("Eliminar rango")
+    .addRoleOption(option =>
+        option
+            .setName("rol")
+            .setDescription("Rol")
+            .setRequired(true)
+    ),
+
+new SlashCommandBuilder()
+    .setName("actualizar")
+    .setDescription("Actualizar manualmente la tabla")
 
 ].map(command => command.toJSON());
 
