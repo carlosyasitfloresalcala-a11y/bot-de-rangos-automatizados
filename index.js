@@ -7,7 +7,7 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(Servidor web interno iniciado en el puerto ${port});
+  console.log('Servidor web interno iniciado en el puerto ${port}');
 });
 require("dotenv").config();
 
