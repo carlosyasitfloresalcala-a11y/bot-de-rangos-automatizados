@@ -35,7 +35,20 @@ let MENSAJE_TABLA_ID = null;
 client.once("ready", async () => {
   console.log(`✅ Bot conectado como ${client.user.tag}`);
 
-  // 🔥 CARGAR TODOS LOS MIEMBROS DEL SERVIDOR
+  // Esto registra el comando /rangos de forma global en cualquier servidor
+  try {
+    await client.application.commands.set([
+      {
+        name: "rangos",
+        description: "Actualiza la tabla de rangos del servidor manualmente",
+      }
+    ]);
+    console.log("⭐ Comando /rangos registrado globalmente");
+  } catch (error) {
+    console.error("Error al registrar comando:", error);
+  }
+
+  // CARGAR TODOS LOS MIEMBROS DEL SERVIDOR
   for (const guild of client.guilds.cache.values()) {
     await guild.members.fetch();
     console.log(`👥 Miembros cargados en ${guild.name}`);
@@ -43,20 +56,29 @@ client.once("ready", async () => {
 });
 
 // COMANDO MANUAL !tabla
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-  if (message.content !== "!tabla") return;
+// ESCUCHAR COMANDO DIAGONAL /rangos
+client.on("interactionCreate", async (interaction) => {
+  // Si no es un comando de barra diagonal, no hacer nada
+  if (!interaction.isChatInputCommand()) return;
 
-  if (
-    !message.member.permissions.has(
-      PermissionsBitField.Flags.Administrator
-    )
-  ) {
-    return message.reply("❌ No tienes permisos.");
+  if (interaction.commandName === "rangos") {
+    // Verificar si el usuario es administrador
+    if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return interaction.reply({ content: "❌ No tienes permisos para usar este comando.", ephemeral: true });
+    }
+
+    // Avisarle a Discord que el bot está procesando (evita que el comando expire si tarda en cargar)
+    await interaction.deferReply();
+
+    try {
+      // Ejecuta tu función usando el servidor donde se usó el comando (interaction.guild)
+      await actualizarTabla(interaction.guild);
+      await interaction.editReply("✅ Tabla actualizada correctamente.");
+    } catch (error) {
+      console.error(error);
+      await interaction.editReply("❌ Hubo un error al actualizar la tabla.");
+    }
   }
-
-  await actualizarTabla(message.guild);
-  message.reply("✅ Tabla actualizada.");
 });
 
 // DETECTAR CAMBIOS DE ROLES
