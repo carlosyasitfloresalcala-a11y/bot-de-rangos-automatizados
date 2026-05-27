@@ -1,3 +1,14 @@
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('¡El bot está completamente vivo y funcionando!');
+});
+
+app.listen(port, () => {
+  console.log(Servidor web interno iniciado en el puerto ${port});
+});
 require("dotenv").config();
 
 const {
