@@ -1,4 +1,4 @@
-[9:01 a.m., 27/5/2026] Carlos Yasit: const { Client, GatewayIntentBits, PermissionsBitField } = require("discord.js");
+require("discord.js");
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -149,4 +149,3 @@ client.on("interactionCreate", async (interaction) => {
 
 // El Token se lee de forma segura desde Railway
 client.login(process.env.TOKEN);
-[9:06 a.m., 27/5/2026] Carlos Yasit: 
