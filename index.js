@@ -7,8 +7,9 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log('Servidor web interno iniciado en el puerto ${port}');
+  console.log(`Servidor web interno iniciado en el puerto ${port}`);
 });
+
 require("dotenv").config();
 
 const {
@@ -20,25 +21,30 @@ const {
     PermissionsBitField
 } = require("discord.js");
 
-const fs = require("fs");
+const mongoose = require("mongoose");
 
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
+// Conexión a MongoDB en Railway
+mongoose.connect(process.env.MONGO_URI || process.env.MONGO_URL)
+  .then(() => console.log("¡Conectado exitosamente a MongoDB en Railway!"))
+  .catch((err) => console.error("Error al conectar a MongoDB:", err));
+
+// Esquema de datos para guardar los rangos
+const GuildDataSchema = new mongoose.Schema({
+    guildId: { type: String, required: true, unique: true },
+    rangos: { type: [String], default: [] },
+    messageId: { type: String, default: null },
+    channelId: { type: String, default: null }
 });
+const GuildData = mongoose.model("GuildData", GuildDataSchema);
 
-const DATA_FILE = "./data.json";
-
-function loadData() {
-    if (!fs.existsSync(DATA_FILE)) {
-        fs.writeFileSync(DATA_FILE, JSON.stringify({}));
-    }
-
-    return JSON.parse(fs.readFileSync(DATA_FILE));
-}
-
-function saveData(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 4));
-}
+// Intents activos para poder leer los miembros del servidor
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers, 
+        GatewayIntentBits.GuildPresences
+    ]
+});
 
 const commands = [
     new SlashCommandBuilder()
@@ -69,12 +75,10 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 (async () => {
     try {
         console.log("Registrando comandos...");
-
         await rest.put(
             Routes.applicationCommands(process.env.CLIENT_ID),
             { body: commands }
         );
-
         console.log("Comandos registrados.");
     } catch (error) {
         console.error(error);
@@ -82,57 +86,59 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 })();
 
 client.once("ready", () => {
-    console.log('Bot conectado como ${client.user.tag}');
+    console.log(`Bot conectado como ${client.user.tag}`);
 });
 
+// Función que descarga miembros en vivo y los etiqueta
 async function actualizarTabla(guildId, channel) {
-    const data = loadData();
+    const data = await GuildData.findOne({ guildId });
+    if (!data) return;
 
-    if (!data[guildId]) return;
-
-    const rangos = data[guildId].rangos || [];
-
+    const rangos = data.rangos || [];
     let contenido = "# 📋 Tabla de Rangos\n\n";
 
     if (rangos.length === 0) {
         contenido += "No hay rangos agregados.";
     } else {
-        rangos.forEach((rol, index) => {
-            contenido += ${index + 1}. <@&${rol}>\n;
-        });
+        try {
+            const todosLosMiembros = await channel.guild.members.fetch();
+
+            for (let index = 0; index < rangos.length; index++) {
+                const rolId = rangos[index];
+                const miembrosConRol = todosLosMiembros.filter(m => m.roles.cache.has(rolId));
+                const listaMenciones = miembrosConRol.map(m => `<@${m.user.id}>`).join(", ");
+                const textoMiembros = listaMenciones ? listaMenciones : "*Nadie en este rango*";
+
+                contenido += `${index + 1}. <@&${rolId}>\n👤 **Miembros:** ${textoMiembros}\n\n`;
+            }
+        } catch (error) {
+            console.error("Error al procesar miembros de los rangos:", error);
+            contenido += "Error al cargar la lista de miembros en vivo.";
+        }
     }
 
     try {
-        const mensaje = await channel.messages.fetch(data[guildId].messageId);
-
+        const mensaje = await channel.messages.fetch(data.messageId);
         await mensaje.edit(contenido);
     } catch {
         const nuevoMensaje = await channel.send(contenido);
-
-        data[guildId].messageId = nuevoMensaje.id;
-        saveData(data);
+        data.messageId = nuevoMensaje.id;
+        await data.save();
     }
 }
 
 client.on("interactionCreate", async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    const data = loadData();
     const guildId = interaction.guild.id;
 
-    if (!data[guildId]) {
-        data[guildId] = {
-            rangos: [],
-            messageId: null,
-            channelId: null
-        };
+    let data = await GuildData.findOne({ guildId });
+    if (!data) {
+        data = new GuildData({ guildId });
+        await data.save();
     }
 
-    if (
-        !interaction.member.permissions.has(
-            PermissionsBitField.Flags.Administrator
-        )
-    ) {
+    if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return interaction.reply({
             content: "❌ Necesitas ser administrador.",
             ephemeral: true
@@ -140,15 +146,13 @@ client.on("interactionCreate", async interaction => {
     }
 
     if (interaction.commandName === "rangos") {
-
         const mensaje = await interaction.channel.send(
             "# 📋 Tabla de Rangos\n\nNo hay rangos agregados."
         );
 
-        data[guildId].messageId = mensaje.id;
-        data[guildId].channelId = interaction.channel.id;
-
-        saveData(data);
+        data.messageId = mensaje.id;
+        data.channelId = interaction.channel.id;
+        await data.save();
 
         return interaction.reply({
             content: "✅ Tabla creada.",
@@ -157,45 +161,33 @@ client.on("interactionCreate", async interaction => {
     }
 
     if (interaction.commandName === "agregarrango") {
-
         const rol = interaction.options.getRole("rol");
 
-        if (!data[guildId].rangos.includes(rol.id)) {
-            data[guildId].rangos.push(rol.id);
+        if (!data.rangos.includes(rol.id)) {
+            data.rangos.push(rol.id);
+            await data.save();
         }
 
-        saveData(data);
-
-        const channel = interaction.guild.channels.cache.get(
-            data[guildId].channelId
-        );
-
+        const channel = interaction.guild.channels.cache.get(data.channelId);
         await actualizarTabla(guildId, channel);
 
         return interaction.reply({
-            content: ✅ Rango ${rol} agregado.,
+            content: `✅ Rango ${rol} agregado.`,
             ephemeral: true
         });
     }
 
     if (interaction.commandName === "eliminarrango") {
-
         const rol = interaction.options.getRole("rol");
 
-        data[guildId].rangos = data[guildId].rangos.filter(
-            r => r !== rol.id
-        );
+        data.rangos = data.rangos.filter(r => r !== rol.id);
+        await data.save();
 
-        saveData(data);
-
-        const channel = interaction.guild.channels.cache.get(
-            data[guildId].channelId
-        );
-
+        const channel = interaction.guild.channels.cache.get(data.channelId);
         await actualizarTabla(guildId, channel);
 
         return interaction.reply({
-            content: ✅ Rango ${rol} eliminado.,
+            content: `✅ Rango ${rol} eliminado.`,
             ephemeral: true
         });
     }
