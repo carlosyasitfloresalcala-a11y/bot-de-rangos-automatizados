@@ -72,7 +72,7 @@ client.on("interactionCreate", async (interaction) => {
 
     try {
       // Ejecuta tu función usando el servidor donde se usó el comando (interaction.guild)
-      await actualizarTabla(interaction.guild);
+      await actualizarTabla(interaction.guild, interaction.channel);
       await interaction.editReply("✅ Tabla actualizada correctamente.");
     } catch (error) {
       console.error(error);
@@ -88,11 +88,12 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 });
 
 // FUNCIÓN PRINCIPAL
-async function actualizarTabla(guild) {
-  const canal = guild.channels.cache.get(CANAL_TABLA_ID);
+async function actualizarTabla(guild, canalEspecifico = null) {
+  // Si le pasamos un canal por el comando, usa ese. Si no, busca el por defecto.
+  const canal = canalEspecifico || guild.channels.cache.get(CANAL_TABLA_ID);
   if (!canal) return;
 
-  let contenido = "📊 **TABLA DE RANGOS**\n\n";
+  let contenido = " 📊 *TABLA DE RANGOS*\n\n";
 
   for (const nombreRol of ROLES_A_MONITOREAR) {
     const rol = guild.roles.cache.find(
