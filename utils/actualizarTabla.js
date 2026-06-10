@@ -24,13 +24,16 @@ async function actualizarTabla(guild) {
 
             const miembros = await guild.members.fetch();
 
-            for (let i = 0; i < data.rangos.length; i++) {
+            const rangosOrdenados = data.rangos
+                .map(rolId => guild.roles.cache.get(rolId))
+                .filter(rol => rol)
+                .sort((a, b) => b.position - a.position);
 
-                const rolId = data.rangos[i];
+            for (let i = 0; i < rangosOrdenados.length; i++) {
 
-                const rol = guild.roles.cache.get(rolId);
+                const rol = rangosOrdenados[i];
 
-                if (!rol) continue;
+                const rolId = rol.id;
 
                 const miembrosConRol = miembros.filter(member =>
                     member.roles.cache.has(rolId)
