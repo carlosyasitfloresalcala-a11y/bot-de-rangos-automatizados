@@ -8,22 +8,13 @@ const {
 
 const commands = [
 
-    // =========================
-    // COMANDO /rangos
-    // =========================
-
     new SlashCommandBuilder()
         .setName("rangos")
         .setDescription("Crear tabla de rangos"),
 
-    // =========================
-    // COMANDO /agregarrango
-    // =========================
-
     new SlashCommandBuilder()
         .setName("agregarrango")
         .setDescription("Agregar un rango a la tabla")
-
         .addRoleOption(option =>
             option
                 .setName("rol")
@@ -31,14 +22,9 @@ const commands = [
                 .setRequired(true)
         ),
 
-    // =========================
-    // COMANDO /eliminarrango
-    // =========================
-
     new SlashCommandBuilder()
         .setName("eliminarrango")
         .setDescription("Eliminar un rango de la tabla")
-
         .addRoleOption(option =>
             option
                 .setName("rol")
@@ -46,17 +32,9 @@ const commands = [
                 .setRequired(true)
         ),
 
-    // =========================
-    // COMANDO /actualizar
-    // =========================
-
     new SlashCommandBuilder()
         .setName("actualizar")
         .setDescription("Actualizar manualmente la tabla de rangos"),
-
-    // =========================
-    // COMANDO /owner
-    // =========================
 
     new SlashCommandBuilder()
         .setName("owner")
@@ -64,43 +42,26 @@ const commands = [
 
 ].map(command => command.toJSON());
 
-// =========================
-// CONFIGURAR REST
-// =========================
-
 const rest = new REST({
     version: "10"
 }).setToken(process.env.TOKEN);
-
-// =========================
-// REGISTRAR COMANDOS
-// =========================
 
 (async () => {
 
     try {
 
-        console.log("=================================");
         console.log("🔄 Registrando slash commands...");
-        console.log("=================================");
 
         await rest.put(
-
-            Routes.applicationCommands(
-                process.env.CLIENT_ID
-            ),
-
+            Routes.applicationCommands(process.env.CLIENT_ID),
             {
                 body: commands
             }
         );
 
-        console.log("=================================");
         console.log("✅ Slash commands registrados");
-        console.log("=================================");
-    }
 
-    catch (error) {
+    } catch (error) {
 
         console.error("❌ Error registrando comandos:");
         console.error(error);
