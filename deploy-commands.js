@@ -52,7 +52,15 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName("actualizar")
-        .setDescription("Actualizar manualmente la tabla de rangos")
+        .setDescription("Actualizar manualmente la tabla de rangos"),
+
+    // =========================
+    // COMANDO /owner
+    // =========================
+
+    new SlashCommandBuilder()
+        .setName("owner")
+        .setDescription("Muestra el dueño del servidor")
 
 ].map(command => command.toJSON());
 
